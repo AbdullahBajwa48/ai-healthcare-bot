@@ -2,13 +2,10 @@ from dotenv import load_dotenv
 from groq import Groq
 import os
 
-load_dotenv();
+load_dotenv()
 
-client = Groq(
-    api_key=os.environ.get("GROQ_API_KEY"),
-)
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-# prompts.py
 SYSTEM_PROMPT = """
 You are a healthcare information assistant. Your role is to provide 
 general health information and wellness guidance only.
@@ -24,18 +21,22 @@ Rules you must always follow:
 5. You may explain what conditions are, how the body works, 
    general wellness tips, and when to seek medical care
 6. Be empathetic and clear — users may be anxious about their health
+7. If the user asks about anything unrelated to health, medicine, or wellness, 
+   politely refuse and redirect them. Say something like: 
+   "I'm only able to assist with health and wellness topics. 
+   Please ask me something related to health!"
 """
 
-chat_completion = client.chat.completions.create(
-    messages = [
-    {"role": "system", "content": SYSTEM_PROMPT},
-    {"role": "user",   "content": "I have a headache, just tell me a medicine to take."},
-    {"role": "assistant", "content": "...previous response..."},
-    {"role": "user",   "content": "next user message"}
-
-    ],
-    model="llama-3.3-70b-versatile",
-)
-
-print(chat_completion.choices[0].message.content)
-
+def get_response(conversation_history: list):
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history
+    
+    stream = client.chat.completions.create(
+        messages=messages,
+        model="llama-3.3-70b-versatile",
+        stream=True,         # ← this is the only change here
+    )
+    
+    for chunk in stream:
+        content = chunk.choices[0].delta.content
+        if content:
+            yield content    # ← yield instead of return, makes it a generator
